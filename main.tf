@@ -347,14 +347,21 @@ output "jump_server_public_ip" {
   value = aws_instance.jump_server.public_ip
 }
 
+resource "aws_instance" "web_server" {
+  ami           = "ami-084568db4383264d4"
+  instance_type = "t2.micro"
+  subnet_id     = aws_subnet.publica.id
+  vpc_security_group_ids = [aws_security_group.web_sg.id]
+  key_name      = "vockey"
+
   user_data = <<-EOF
               #!/bin/bash
               apt update -y
               apt install -y python3-pip python3-flask mysql-client
-              pip3 install flask flask-mysqldb
+              pip3 install flask flask-mysqldb pymysql
 
-              cat <<EOPYTHON > /home/ubuntu/app.pyfrom 
-              flask import Flask, request, jsonify, render_template, redirect, url_for
+              cat <<EOPYTHON > /home/ubuntu/app.py
+              from flask import Flask, request, jsonify, render_template, redirect, url_for
               import pymysql
 
               app = Flask(__name__)
@@ -362,7 +369,7 @@ output "jump_server_public_ip" {
               db = pymysql.connect(
                   host="avance-db-cluster.cluster-chpuip2ijhn7.us-east-1.rds.amazonaws.com",
                   user="andres145678",
-                  passwd="canales10
+                  passwd="canales10",
                   db="Avance"
               )
 
@@ -409,8 +416,6 @@ output "jump_server_public_ip" {
 
               if __name__ == "__main__":
                   app.run(host="0.0.0.0", port=5000)
-
-
               EOPYTHON
 
               cat <<EOMYSQL > /home/ubuntu/init.sql
@@ -425,8 +430,10 @@ output "jump_server_public_ip" {
               );
               EOMYSQL
 
-              mysql -h ${aws_rds_cluster.aurora_cluster.endpoint} -u Sebas -pDevops < /home/ubuntu/init.sql
+              mysql -h avance-db-cluster.cluster-chpuip2ijhn7.us-east-1.rds.amazonaws.com -u Sebas -pDevops1234 < /home/ubuntu/init.sql
               EOF
 
-  tags = { Name = "WebServer" }
+  tags = {
+    Name = "WebServer"
+  }
 }
