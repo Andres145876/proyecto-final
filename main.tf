@@ -348,17 +348,19 @@ output "jump_server_public_ip" {
 }
 
 resource "aws_instance" "web_server" {
-  ami           = "ami-084568db4383264d4"
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.publica.id
+  ami                    = "ami-xxxxxxxxxxxxxxxxx"
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.publica.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
-  key_name      = "vockey"
+  key_name               = "vockey"
 
   user_data = <<-EOF
               #!/bin/bash
               apt update -y
               apt install -y python3-pip python3-flask mysql-client
               pip3 install flask flask-mysqldb pymysql
+
+              mkdir -p /home/ubuntu/templates
 
               cat <<EOPYTHON > /home/ubuntu/app.py
               from flask import Flask, request, jsonify, render_template, redirect, url_for
@@ -393,7 +395,6 @@ resource "aws_instance" "web_server" {
                   precio = request.form["precio"]
                   imagen = request.form["imagen"]
                   cantidad = request.form["cantidad"]
-
                   cursor = db.cursor()
                   cursor.execute("INSERT INTO productos (nombre, precio, imagen, cantidad) VALUES (%s, %s, %s, %s)",
                       (nombre, precio, imagen, cantidad))
@@ -437,3 +438,4 @@ resource "aws_instance" "web_server" {
     Name = "WebServer"
   }
 }
+
