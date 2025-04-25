@@ -168,38 +168,48 @@ resource "aws_instance" "web_server" {
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name = "vockey"
 
-  user_data = <<-EOF
+user_data = <<-EOF
               #!/bin/bash
               apt update -y
               apt install -y python3-pip python3-flask mysql-client
-              pip3 install flask flask-mysqldb
+              pip3 install flask pymysql
 
               cat <<EOPYTHON > /home/ubuntu/app.py
               from flask import Flask, request, jsonify, render_template, redirect, url_for
               import pymysql
 
-              app = Flask(__name__)
+              app = Flask(_name_)
 
-              db = pymysql.connect(
-                  host="avance-db-cluster.cluster-chpuip2ijhn7.us-east-1.rds.amazonaws.com",
-                  user="andres1456",
-                  passwd="canales10",
-                  db="Avance"
-              )
+              def get_connection():
+                  return pymysql.connect(
+                      host="avance-db-cluster.cluster-chpuip2ijhn7.us-east-1.rds.amazonaws.com",
+                      user="andres1456",
+                      passwd="canales10",
+                      db="Avance",
+                      cursorclass=pymysql.cursors.DictCursor
+                  )
 
               @app.route("/")
               def home():
-                  cursor = db.cursor()
-                  cursor.execute("SELECT * FROM productos")
-                  productos = cursor.fetchall()
-                  return render_template("index.html", productos=productos)
+                  connection = get_connection()
+                  try:
+                      with connection.cursor() as cursor:
+                          cursor.execute("SELECT * FROM productos")
+                          productos = cursor.fetchall()
+                      return render_template("index.html", productos=productos)
+                  finally:
+                      connection.close()
 
               @app.route("/productos", methods=["GET"])
               def obtener():
-                  cursor = db.cursor()
-                  cursor.execute("SELECT * FROM productos")
-                  rows = cursor.fetchall()
-                  return jsonify(rows)
+                  connection = get_connection()
+                  try:
+                      with connection.cursor() as cursor:
+                          cursor.execute("SELECT * FROM productos")
+                          rows = cursor.fetchall()
+                      return jsonify(rows)
+                  finally:
+                      connection.close()
 
               @app.route("/productos", methods=["POST"])
               def insertar():
@@ -208,27 +218,41 @@ resource "aws_instance" "web_server" {
                   imagen = request.form["imagen"]
                   cantidad = request.form["cantidad"]
 
-                  cursor = db.cursor()
-                  cursor.execute("INSERT INTO productos (nombre, precio, imagen, cantidad) VALUES (%s, %s, %s, %s)",
-                      (nombre, precio, imagen, cantidad))
-                  db.commit()
-                  return redirect(url_for("home"))
+                  connection = get_connection()
+                  try:
+                      with connection.cursor() as cursor:
+                          cursor.execute(
+                              "INSERT INTO productos (nombre, precio, imagen, cantidad) VALUES (%s, %s, %s, %s)",
+                              (nombre, precio, imagen, cantidad)
+                          )
+                          connection.commit()
+                      return redirect(url_for("home"))
+                  finally:
+                      connection.close()
 
               @app.route("/eliminar/<int:id>", methods=["POST"])
               def eliminar(id):
-                  cursor = db.cursor()
-                  cursor.execute("DELETE FROM productos WHERE id = %s", (id,))
-                  db.commit()
-                  return redirect(url_for("home"))
+                  connection = get_connection()
+                  try:
+                      with connection.cursor() as cursor:
+                          cursor.execute("DELETE FROM productos WHERE id = %s", (id,))
+                          connection.commit()
+                      return redirect(url_for("home"))
+                  finally:
+                      connection.close()
 
               @app.route("/comprar/<int:id>", methods=["POST"])
               def comprar(id):
-                  cursor = db.cursor()
-                  cursor.execute("UPDATE productos SET cantidad = cantidad - 1 WHERE id = %s AND cantidad > 0", (id,))
-                  db.commit()
-                  return redirect(url_for("home"))
+                  connection = get_connection()
+                  try:
+                      with connection.cursor() as cursor:
+                          cursor.execute("UPDATE productos SET cantidad = cantidad - 1 WHERE id = %s AND cantidad > 0", (id,))
+                          connection.commit()
+                      return redirect(url_for("home"))
+                  finally:
+                      connection.close()
 
-              if __name__ == "__main__":
+              if _name_ == "_main_":
                   app.run(host="0.0.0.0", port=5000)
               EOPYTHON
 
@@ -244,8 +268,8 @@ resource "aws_instance" "web_server" {
               );
               EOMYSQL
 
-              mysql -h ${aws_rds_cluster.aurora_cluster.endpoint} -u andres1456 -pcanales10 < /home/ubuntu/init.sql
-              EOF
+              mysql -h avance-db-cluster.cluster-chpuip2ijhn7.us-east-1.rds.amazonaws.com -u andres1456 -pcanales10 < /home/ubuntu/init.sql
+              EOF
 
   tags = { Name = "WebServer" }
 }
